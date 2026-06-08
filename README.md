@@ -14,10 +14,12 @@ A two-stage, classical-ML pipeline for detecting **spring wheat brown rust**
   out a third **"suspicious / uncertain"** class.
 
 ### Scope (chosen constraints)
-- Spring wheat **brown rust only** (one disease).
+- Spring wheat **brown / leaf rust only** (one disease, *Puccinia triticina*).
 - **Image-level** classification. We do **not** claim per-region accuracy — the
   datasets only provide image-level labels.
-- Datasets: Kaggle / CGIAR wheat-rust sets (PlantVillage lacks wheat).
+- **Clean-background, close-up single-leaf images.** The color/GMM segmentation
+  relies on a leaf-vs-background separation; field photos with soil break it
+  (see *Honest limitations*).
 
 ## Architecture
 
@@ -39,6 +41,36 @@ image ─▶ BGR→HSV ─▶ GMM clusters ─▶ rust/green/bg masks ─▶ fea
 | `phytolabs/viz.py` | lesion overlay, histograms, ROC, confusion matrix, reliability |
 | `phytolabs/cli.py` | `make-synthetic`, `train-gmm`, `build-features`, `train-logreg`, `predict` |
 | `phytolabs/synthetic.py` | synthetic leaves for an end-to-end smoke test |
+
+## Results
+
+Trained and evaluated on the **Mendeley "Wheat nitrogen deficiency and leaf
+rust" dataset** (Leaf rust sub-set; Otsu-masked, black-background close-ups).
+The model's own `train` folder was re-split 80/20 into train (480 imgs:
+274 healthy / 206 rust) and validation (121 imgs: 69 / 52); the dataset's
+provided test split is left untouched for an unbiased final number.
+
+Validation (121 images, threshold 0.5):
+
+| metric | value |
+| --- | --- |
+| accuracy | 0.942 |
+| precision | 1.000 |
+| recall | 0.865 |
+| F1 | 0.928 |
+| ROC-AUC | ≈ 0.98 |
+
+Confusion: 69/69 healthy correct (0 false positives), 45/52 rust correct
+(7 false negatives). Band split (0.45–0.55): 75 healthy / 2 suspicious /
+44 diseased. The loss curve converges smoothly (~0.12) and calibration is
+reasonable.
+
+The 7 false negatives are **mild / early-stage infections** with very small
+lesion area — because the features are lesion-*quantity* based, faint cases
+look healthy. Lowering the decision threshold (e.g. `proba >= 0.30`) trades a
+little precision for recall and recovers several of them; the threshold sweep
+and the held-out test-set evaluation live in the last section of
+[`notebooks/colab_phytolabs.ipynb`](notebooks/colab_phytolabs.ipynb).
 
 ## Install
 
@@ -74,15 +106,18 @@ pipeline on Google Colab (which avoids local environment issues), use
 
 ## Using a real dataset
 
-PlantVillage does not include wheat, so use one of:
+PlantVillage does not include wheat. We use the
+**[Mendeley "Wheat nitrogen deficiency and leaf rust image dataset"](https://data.mendeley.com/datasets/th422bg4yd/1)**
+(Leaf rust sub-set), whose leaves are Otsu-masked onto a black background and
+shot close-up — exactly the clean-background condition the GMM needs. Its
+structure is `WheatLeafRust/{train,test,val}/{control,diseased}`; we map
+`control → healthy` and `diseased → rust`.
 
-- **Kaggle "Wheat Leaf Dataset"** (single leaf, close view, clean background) —
-  *recommended* for color segmentation.
-- **CGIAR Computer Vision for Crop Disease**
-  (`shadabhussain/cgiar-computer-vision-for-crop-disease`) — multiple leaves per
-  image and complex backgrounds; harder for HSV/GMM (stretch goal).
+> **Why not field datasets?** We first tried the Kaggle "Wheat Leaf Dataset"
+> (field photos with soil backgrounds). The GMM flagged brown soil as rust,
+> making the segmentation useless — confirming that this color-based method
+> needs clean backgrounds.
 
-See [`scripts/download_data.sh`](scripts/download_data.sh) for Kaggle CLI steps.
 After downloading, reshape into the expected layout:
 
 ```
@@ -95,12 +130,15 @@ with the helper:
 
 ```bash
 python -m scripts.reshape_data \
-    --healthy-src data/raw/<dataset>/Healthy \
-    --rust-src    data/raw/<dataset>/leaf_rust \
+    --healthy-src data/raw/WheatLeafRust/train/control \
+    --rust-src    data/raw/WheatLeafRust/train/diseased \
     --out data --val-fraction 0.2
 ```
 
 Then run the same `train-gmm → build-features → train-logreg → predict` steps.
+For a clean final number, evaluate on the untouched
+`data/raw/WheatLeafRust/test` split (see the threshold-sweep + test-set cell in
+the Colab notebook).
 
 > Note on color tuning: the GMM component→class mapping in
 > [`segmentation.py`](src/phytolabs/segmentation.py) uses HSV hue ranges tuned
@@ -108,7 +146,14 @@ Then run the same `train-gmm → build-features → train-logreg → predict` st
 > component HSV means from `train-gmm` and adjust `classify_component` if needed.
 
 ## Honest limitations
-- Image-level only: no per-region/segmentation accuracy is reported or claimed.
-- Color-based segmentation is sensitive to lighting, white balance, and
-  backgrounds; the clean single-leaf dataset works best.
-- Single disease (brown rust). Other rusts/diseases are out of scope.
+- **Image-level only**: no per-region/segmentation accuracy is reported or
+  claimed.
+- **Mild / early infections are under-detected.** The features are
+  lesion-*quantity* based, so faint cases with tiny lesion area look healthy —
+  this is the source of the validation false negatives. A lower decision
+  threshold recovers some at a small precision cost.
+- **Backgrounds must be clean.** Color-based GMM segmentation is sensitive to
+  lighting, white balance, and especially backgrounds: on field photos with
+  soil, brown earth is mistaken for rust and the segmentation fails. The
+  Otsu-masked single-leaf dataset is what makes this method work.
+- **Single disease** (brown / leaf rust). Other rusts/diseases are out of scope.
