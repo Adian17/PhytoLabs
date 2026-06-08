@@ -19,5 +19,8 @@ env/
 # Jupyter
 .ipynb_checkpoints/
 
+# Alternate git metadata dir (sandbox blocks the normal .git/)
+.gitrepo/
+
 # OS / editor
 .DS_Store
