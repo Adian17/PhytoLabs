@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "phytolabs"
+version = "0.1.0"
+description = "Wheat brown-rust detection: GMM (HSV) lesion segmentation + from-scratch logistic regression"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "numpy>=1.24",
+    "opencv-python>=4.8",
+    "scikit-learn>=1.3",
+    "scikit-image>=0.21",
+    "matplotlib>=3.7",
+    "joblib>=1.3",
+    "tqdm>=4.65",
+]
+
+[project.scripts]
+phytolabs = "phytolabs.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-dir]
+"" = "src"
