@@ -5,7 +5,7 @@ Stage 2: from-scratch logistic regression + SGD over those features, with a
 "suspicious" confidence band.
 """
 
-from . import io, segmentation, features, logreg, calibration, pipeline, viz, synthetic
+from . import io, segmentation, features, logreg, calibration, pipeline, viz, synthetic, severity
 
 __all__ = [
     "io",
@@ -16,6 +16,7 @@ __all__ = [
     "pipeline",
     "viz",
     "synthetic",
+    "severity",
 ]
 
 __version__ = "0.1.0"

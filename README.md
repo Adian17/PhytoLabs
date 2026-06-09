@@ -12,6 +12,12 @@ A two-stage, classical-ML pipeline for detecting **spring wheat brown rust**
   a logistic regression trained **from scratch** with mini-batch SGD, producing
   a calibrated disease probability. A confidence band (default 0.45–0.55) carves
   out a third **"suspicious / uncertain"** class.
+- **Severity grade (evidence).** Alongside the probability, PhytoLabs reports an
+  ordinal severity (`none / mild / moderate / severe`) computed as the **percent
+  of leaf area covered by rust** (the "percent leaf area affected" used in
+  wheat-rust scoring, cf. the modified Cobb scale). It is read directly from the
+  Stage-1 segmentation, so it flags trace-level lesions even when the binary
+  classifier leans healthy.
 
 ### Scope (chosen constraints)
 - Spring wheat **brown / leaf rust only** (one disease, *Puccinia triticina*).
@@ -25,7 +31,8 @@ A two-stage, classical-ML pipeline for detecting **spring wheat brown rust**
 
 ```
 image ─▶ BGR→HSV ─▶ GMM clusters ─▶ rust/green/bg masks ─▶ features ─▶ logreg(SGD) ─▶ P(rust)
-                                          │                                              │
+                                          │                  │                           │
+                                          │                  └▶ % leaf area ─▶ severity   │
                                           └▶ lesion overlay (UX)              0.45–0.55 → "suspicious"
 ```
 
@@ -36,6 +43,7 @@ image ─▶ BGR→HSV ─▶ GMM clusters ─▶ rust/green/bg masks ─▶ fea
 | `phytolabs/features.py` | lesion area fraction, blob count, size stats |
 | `phytolabs/logreg.py` | from-scratch logistic regression + SGD + scaler |
 | `phytolabs/calibration.py` | suspicious band + reliability/ECE |
+| `phytolabs/severity.py` | percent-leaf-area → ordinal severity grade |
 | `phytolabs/metrics.py` | accuracy / precision / recall / F1 / ROC-AUC (NumPy) |
 | `phytolabs/pipeline.py` | end-to-end glue + batch feature tables |
 | `phytolabs/viz.py` | lesion overlay, histograms, ROC, confusion matrix, reliability |
@@ -71,6 +79,30 @@ look healthy. Lowering the decision threshold (e.g. `proba >= 0.30`) trades a
 little precision for recall and recovers several of them; the threshold sweep
 and the held-out test-set evaluation live in the last section of
 [`notebooks/colab_phytolabs.ipynb`](notebooks/colab_phytolabs.ipynb).
+
+## Severity grading
+
+Every prediction also carries a severity grade derived from the Stage-1
+segmentation — the **percent of leaf area covered by rust** mapped to an ordinal
+scale. Default cut points (configurable via `severity_thresholds`):
+
+| grade | % leaf area with rust |
+| --- | --- |
+| `none` | < 1% |
+| `mild` | 1–10% |
+| `moderate` | 10–25% |
+| `severe` | ≥ 25% |
+
+`pipeline.predict_image` returns `severity` and `severity_percent` next to
+`probability`/`label`, and the CLI `predict` prints them. Because severity is
+read straight from the masks (not from the classifier), a mild/trace grade can
+surface early infections the binary model scores as healthy.
+
+> **No severity ground truth.** The datasets label images only as
+> healthy/diseased, so severity is a deterministic, interpretable readout — it
+> is validated by distribution sanity (healthy → `none`; diseased spread across
+> `mild/moderate/severe`), **not** by an accuracy metric. The Colab notebook has
+> a cell that plots this distribution and suggests data-driven thresholds.
 
 ## Install
 
@@ -151,7 +183,9 @@ the Colab notebook).
 - **Mild / early infections are under-detected.** The features are
   lesion-*quantity* based, so faint cases with tiny lesion area look healthy —
   this is the source of the validation false negatives. A lower decision
-  threshold recovers some at a small precision cost.
+  threshold recovers some at a small precision cost, and the severity grade
+  (read directly from the masks) still flags many of these as `mild`/trace even
+  when the binary classifier says healthy.
 - **Backgrounds must be clean.** Color-based GMM segmentation is sensitive to
   lighting, white balance, and especially backgrounds: on field photos with
   soil, brown earth is mistaken for rust and the segmentation fails. The

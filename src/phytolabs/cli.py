@@ -108,6 +108,7 @@ def cmd_predict(args: argparse.Namespace) -> None:
     )
     print(f"Image: {args.image}")
     print(f"  P(rust) = {result['probability']:.3f}  ->  {result['label']}")
+    print(f"  Severity = {result['severity']} ({result['severity_percent']:.1f}% leaf area)")
     print("  Features:")
     for name in FEATURE_NAMES:
         print(f"    {name}: {result['features'][name]:.4f}")

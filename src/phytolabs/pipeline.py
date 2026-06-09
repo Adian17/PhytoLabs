@@ -12,6 +12,7 @@ from .features import extract_features, features_to_vector, FEATURE_NAMES
 from .io import iter_image_paths, load_image
 from .logreg import LogisticRegressionSGD
 from .segmentation import LeafGMM, train_gmm
+from .severity import DEFAULT_THRESHOLDS, grade_severity
 
 # Folder name -> binary label used across the project.
 DEFAULT_CLASS_MAP: Dict[str, int] = {"healthy": 0, "rust": 1}
@@ -88,20 +89,26 @@ def predict_image(
     band: Tuple[float, float] = (0.45, 0.55),
     max_size: int = 512,
     use_leaf_mask: bool = True,
+    severity_thresholds: Tuple[float, ...] = DEFAULT_THRESHOLDS,
 ) -> Tuple[Dict[str, object], Dict[str, np.ndarray], np.ndarray]:
     """Run the full pipeline on one image.
 
     Returns (result, segmentation masks, original BGR image). ``result`` has
-    keys: probability, label, features.
+    keys: probability, label, features, severity, severity_percent. ``severity``
+    is computed directly from the segmentation masks (percent of leaf area with
+    rust), independent of the probabilistic detection.
     """
     bgr = load_image(path, max_size=max_size)
     feats, seg = image_to_features(bgr, leaf_gmm, use_leaf_mask=use_leaf_mask)
     x = features_to_vector(feats)[None, :]
     proba = float(model.predict_proba(x)[0])
     label = str(classify_with_band(np.array([proba]), band[0], band[1])[0])
+    sev = grade_severity(seg["rust"], seg["leaf"], thresholds=severity_thresholds)
     result = {
         "probability": proba,
         "label": label,
         "features": feats,
+        "severity": sev.grade,
+        "severity_percent": sev.percent,
     }
     return result, seg, bgr
