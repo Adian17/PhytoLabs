@@ -82,23 +82,19 @@ def build_feature_table(
     return np.vstack(rows), np.array(labels, dtype=int), paths
 
 
-def predict_image(
-    path: str | Path,
+def predict_bgr(
+    bgr: np.ndarray,
     leaf_gmm: LeafGMM,
     model: LogisticRegressionSGD,
     band: Tuple[float, float] = (0.45, 0.55),
-    max_size: int = 512,
     use_leaf_mask: bool = True,
     severity_thresholds: Tuple[float, ...] = DEFAULT_THRESHOLDS,
 ) -> Tuple[Dict[str, object], Dict[str, np.ndarray], np.ndarray]:
-    """Run the full pipeline on one image.
+    """Run the full pipeline on an in-memory BGR image.
 
-    Returns (result, segmentation masks, original BGR image). ``result`` has
-    keys: probability, label, features, severity, severity_percent. ``severity``
-    is computed directly from the segmentation masks (percent of leaf area with
-    rust), independent of the probabilistic detection.
+    Returns (result, segmentation masks, BGR image). ``result`` has keys:
+    probability, label, features, severity, severity_percent.
     """
-    bgr = load_image(path, max_size=max_size)
     feats, seg = image_to_features(bgr, leaf_gmm, use_leaf_mask=use_leaf_mask)
     x = features_to_vector(feats)[None, :]
     proba = float(model.predict_proba(x)[0])
@@ -112,3 +108,27 @@ def predict_image(
         "severity_percent": sev.percent,
     }
     return result, seg, bgr
+
+
+def predict_image(
+    path: str | Path,
+    leaf_gmm: LeafGMM,
+    model: LogisticRegressionSGD,
+    band: Tuple[float, float] = (0.45, 0.55),
+    max_size: int = 512,
+    use_leaf_mask: bool = True,
+    severity_thresholds: Tuple[float, ...] = DEFAULT_THRESHOLDS,
+) -> Tuple[Dict[str, object], Dict[str, np.ndarray], np.ndarray]:
+    """Run the full pipeline on one image file.
+
+    Returns (result, segmentation masks, original BGR image). See ``predict_bgr``.
+    """
+    bgr = load_image(path, max_size=max_size)
+    return predict_bgr(
+        bgr,
+        leaf_gmm,
+        model,
+        band=band,
+        use_leaf_mask=use_leaf_mask,
+        severity_thresholds=severity_thresholds,
+    )

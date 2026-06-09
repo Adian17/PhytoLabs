@@ -110,7 +110,51 @@ surface early infections the binary model scores as healthy.
 cd phytolabs
 python -m venv .venv && source .venv/bin/activate
 pip install -e .          # or: pip install -r requirements.txt
+pip install -e ".[api]"   # include FastAPI server (or use requirements.txt)
 ```
+
+## HTTP API (FastAPI)
+
+Run the inference server after training and saving artifacts to `artifacts/gmm.joblib` and
+`artifacts/logreg.joblib` (see Quick start below, or save from Colab):
+
+```bash
+phytolabs-api
+# or: python -m phytolabs.api.main
+# or: uvicorn phytolabs.api.main:app --host 0.0.0.0 --port 8000
+```
+
+Endpoints:
+
+- `GET /health` — server status and whether model artifacts loaded
+- `POST /analyze` — multipart field `image` (JPEG/PNG) → JSON matching the app UI:
+  `label`, `probability`, `severity`, `severity_percent`, `features`, `overlay_image_base64`, `message`
+
+Example:
+
+```bash
+curl -s http://127.0.0.1:8000/health
+curl -s -X POST http://127.0.0.1:8000/analyze \
+  -F "image=@data/val/rust/rust_000.png" | python -m json.tool
+```
+
+Environment variables (optional): `PHYTOLABS_GMM`, `PHYTOLABS_LOGREG`, `PHYTOLABS_PORT`,
+`PHYTOLABS_CORS_ORIGINS` (comma-separated, default `*`).
+
+## Web app (Figma Make → React)
+
+The mobile-first UI lives in [`app/`](app/). It calls the FastAPI `/analyze` endpoint and displays
+real overlays, verdict, and severity.
+
+```bash
+# Terminal 1: API
+phytolabs-api
+
+# Terminal 2: frontend
+cd app && npm install && npm run dev
+```
+
+See [`app/README.md`](app/README.md) for local dev. Step-by-step **Railway** deploy: [`DEPLOY.md`](DEPLOY.md).
 
 ## Quick start (no dataset required)
 

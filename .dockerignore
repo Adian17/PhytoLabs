@@ -1,0 +1,30 @@
+# Git / local dev
+.git
+.gitignore
+.venv
+venv
+env
+.vscode
+.gitrepo
+
+# Data & outputs (large)
+data/
+outputs/
+notebooks/.ipynb_checkpoints
+
+# Frontend (built by app/Dockerfile separately)
+app/node_modules
+app/dist
+
+# Python cache
+__pycache__
+*.py[cod]
+*.egg-info
+.pytest_cache
+
+# OS
+.DS_Store
+
+# Keep artifacts/*.joblib out of image unless you copy them in intentionally before build.
+# The API Dockerfile bootstraps synthetic artifacts when none are supplied.
+artifacts/

@@ -5,6 +5,10 @@ artifacts/*.npz
 artifacts/*.png
 outputs/
 
+# Frontend
+app/node_modules/
+app/dist/
+
 # Python
 __pycache__/
 *.py[cod]

@@ -37,6 +37,15 @@ def load_image(path: str | Path, max_size: int | None = 512) -> np.ndarray:
     return resize_max(bgr, max_size)
 
 
+def decode_image_bytes(data: bytes, max_size: int | None = 512) -> np.ndarray:
+    """Decode raw image bytes (JPEG/PNG/etc.) to a BGR array, optionally downscaled."""
+    arr = np.frombuffer(data, dtype=np.uint8)
+    bgr = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    if bgr is None:
+        raise ValueError("Could not decode image bytes")
+    return resize_max(bgr, max_size)
+
+
 def to_hsv(bgr: np.ndarray) -> np.ndarray:
     """Convert a BGR uint8 image to HSV (H in [0,179], S/V in [0,255])."""
     return cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)

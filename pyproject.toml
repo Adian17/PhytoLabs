@@ -18,8 +18,16 @@ dependencies = [
     "tqdm>=4.65",
 ]
 
+[project.optional-dependencies]
+api = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "python-multipart>=0.0.9",
+]
+
 [project.scripts]
 phytolabs = "phytolabs.cli:main"
+phytolabs-api = "phytolabs.api.main:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
