@@ -79,6 +79,7 @@ npx vite preview
 
 | Issue | Fix |
 | --- | --- |
+| Web URL shows `{"detail":"Not Found"}` | **Wrong service deployed** — you're hitting the FastAPI API, not the React app. Set web service **Root Directory** to `app` and redeploy. Logs should show `npm`, not `python`. |
 | Web shows analysis error | Check API `/health`, `VITE_API_URL`, CORS |
 | Wrong predictions | Replace synthetic artifacts with Colab-trained `.joblib` on volume |
 | Build slow | API image trains synthetic models once at build (~1–2 min) |

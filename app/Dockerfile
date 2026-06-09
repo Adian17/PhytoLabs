@@ -1,4 +1,4 @@
-# PhytoLabs web app (Vite → nginx static)
+# PhytoLabs web app (Vite → static, served on Railway $PORT)
 FROM node:20-alpine AS build
 
 WORKDIR /app
@@ -8,17 +8,21 @@ RUN npm ci
 
 COPY . .
 
-# Set at Railway build time to your API public URL (no trailing slash).
+# Required at Railway build time: https://phytolabs-production.up.railway.app
 ARG VITE_API_URL
 ENV VITE_API_URL=$VITE_API_URL
 
 RUN npm run build
 
-FROM nginx:1.27-alpine
+FROM node:20-alpine
 
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /app/dist /usr/share/nginx/html
+RUN npm install -g serve@14.2.4
 
-EXPOSE 80
+WORKDIR /app
+COPY --from=build /app/dist ./dist
 
-CMD ["nginx", "-g", "daemon off;"]
+# Railway injects PORT (often 8080). `serve` binds to it.
+ENV PORT=8080
+EXPOSE 8080
+
+CMD ["sh", "-c", "serve -s dist -l ${PORT}"]
